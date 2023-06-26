@@ -8,3 +8,5 @@
 #define   CONNECTION_BUFFER    		650 // bytes
 #define   CONNECTION_STATE   			10000 // millis
 #define   SMS_CHECK_INTERVAL 			30000 // milli
+
+#define   MQTT_RECV_MODE    0

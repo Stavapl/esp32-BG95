@@ -29,7 +29,7 @@
 
 // CONSTANTS
 #define   AT_WAIT_RESPONSE      	10 // milis
-#define   AT_TERMINATOR     			'\r\n'
+#define   AT_TERMINATOR     		'\r' // \n
 
 #define MAX_SMS 10
 
@@ -98,9 +98,9 @@ class MODEMBGXX {
 		bool loop(uint32_t loop = 10);
 
 		// --- MODEM static registered numbers ---
-		String get_imei(uint32_t wait = 5000);
-		String get_ccid(uint32_t wait = 5000);
-		String get_imsi(uint32_t wait = 5000);
+		String get_imei();
+		String get_ccid();
+		String get_imsi();
 		String get_subscriber_number(uint16_t wait = 3000);
 
 		/*
@@ -123,7 +123,7 @@ class MODEMBGXX {
 		/*
 		* get IP of a context
 		*/
-		String get_ip(uint8_t cid = 1, uint32_t wait = 5000);
+		String get_ip(uint8_t cid = 1);
 		/*
 		* check if modem is connected to apn
 		*/
@@ -230,11 +230,15 @@ class MODEMBGXX {
 		void MQTT_readAllBuffers(uint8_t clientID);
 
 		void log_status();
+
+		bool raw_check_command(String command, String ok_result, uint32_t wait = 5000);
+		String raw_command(String command, uint32_t timeout = 300);
+
 	private:
 
 		struct SMS {
 			bool		used;
-			uint8_t index;
+			uint8_t 	index;
 			char 		origin[20];
 			char 		msg[256];
 		};
@@ -365,15 +369,11 @@ class MODEMBGXX {
 		/*
 		* switch modem on
 		*/
-		bool switchOn();
+		void switchOn();
 		/*
 		* switch modem off
 		*/
 		bool switch_radio_off();
-		/*
-		* increase time for next modem reboot
-		*/
-		void increase_modem_reboot();
 		/*
 		* register on network
 		*/

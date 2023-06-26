@@ -91,14 +91,13 @@ bool MODEMBGXX::wait_modem_to_init(){
 	if(wait_command("RDY",10000)){
 		reset();
 		if(wait_command("APP RDY",10000)){
-			increase_modem_reboot();
 			return true;
 		}
 	}
 	return false;
 }
 
-bool MODEMBGXX::switchOn(){
+void MODEMBGXX::switchOn(){
 
 	#ifdef DEBUG_BG95
 	log("switching modem");
@@ -109,10 +108,6 @@ bool MODEMBGXX::switchOn(){
 	digitalWrite(op.pwkey, LOW);
 
 	wait_modem_to_init();
-}
-
-void MODEMBGXX::increase_modem_reboot(){
-	next_retry = millis() + 5*60*1000; // 15 minutes
 }
 
 bool MODEMBGXX::powerCycle(){
@@ -147,10 +142,10 @@ bool MODEMBGXX::reset() {
 	op.ready = false;
 
 	for (uint8_t i = 0; i < MAX_CONNECTIONS; i++) {
-		data_pending[i]    = false;
 		apn[i].connected = false;
 	}
 	for (uint8_t i = 0; i < MAX_TCP_CONNECTIONS; i++) {
+		data_pending[i] = false;
 		tcp[i].connected = false;
 	}
 	for (uint8_t i = 0; i < MAX_MQTT_CONNECTIONS; i++) {
@@ -292,7 +287,10 @@ bool MODEMBGXX::config() {
 
 	if(!op.did_config){
 
-		if (!check_command("ATE0", "OK", "ERROR")) return false;
+		if (!check_command("ATE0", "OK", "ERROR")) {
+			log("[config] ATE0 failed");
+			return false;
+		}
 		#ifdef DEBUG_BG95
 		log("[config] echo mode off");
 		#endif
@@ -395,7 +393,6 @@ void MODEMBGXX::check_sms() {
 	String   sms[7]; // index, status, origin, phonebook, date, time, msg
 	//uint8_t  index     = 0;
 	uint32_t timeout   = millis() + 10000;
-	bool     found_sms = false;
 	uint8_t counter = 0;
 
 	while (timeout >= millis()) {
@@ -415,11 +412,6 @@ void MODEMBGXX::check_sms() {
 				parse_command_line(ret, true);
 			}
 
-			/*
-			if (found_sms) continue;
-
-			found_sms = true;
-			*/
 			ret = ret.substring(6);
 			ret.trim();
 
@@ -491,7 +483,7 @@ void MODEMBGXX::check_sms() {
 }
 
 void MODEMBGXX::process_sms(uint8_t index) {
-	if (message[index].used && message[index].index >= 0) {
+	if (message[index].used /* && message[index].index >= 0 */) {
 		message[index].used = false;
 
 		sms_handler_func(message[index].index, String(message[index].origin), String(message[index].msg));
@@ -1029,7 +1021,6 @@ uint16_t MODEMBGXX::http_get_header_length(uint8_t clientID){
 	if (buffer_len[clientID] == 0) return 0;
 
 	uint16_t i;
-	uint8_t last_char = 0;
 	for(i=0; i<buffer_len[clientID]; i++){
 		char a = buffers[clientID][i-3];
 		char b = buffers[clientID][i-2];
@@ -1056,7 +1047,7 @@ void MODEMBGXX::http_parse_header(char* data, uint16_t len){
 	std::string header;
 	header.assign(&data[0],&data[len-1]);
 
-	uint16_t index = 0;
+	std::size_t index = 0;
 	uint16_t i = 0;
 	while(true){
 
@@ -1567,7 +1558,7 @@ String MODEMBGXX::parse_command_line(String line, bool set_data_pending) {
 	}else if(line.startsWith("+QMTSTAT")){
 		// error ocurred, channel is disconnected
 		String filter = "+QMTSTAT: ";
-		uint8_t index = line.indexOf(filter);
+		int8_t index = line.indexOf(filter);
 		line = line.substring(index);
 		index = line.indexOf(",");
 		if(index > -1){
@@ -1607,10 +1598,13 @@ String MODEMBGXX::parse_command_line(String line, bool set_data_pending) {
 						switch((int)state.toInt()){
 							case 0:
 								log("mqtt client "+String(cidx)+" Connection refused - Unacceptable Protocol Version");
+								break;
 							case 1:
 								log("mqtt client "+String(cidx)+" Connection refused - Identifier Rejected");
+								break;
 							case 2:
 								log("mqtt client "+String(cidx)+" Connection refused - Server Unavailable");
+								break;
 							case 3:
 								log("mqtt client "+String(cidx)+" Connection refused - Not Authorized");
 						}
@@ -1669,7 +1663,7 @@ String MODEMBGXX::mqtt_message_received(String line){
 			index = line.indexOf(",");
 			aux = line.substring(0,index); // msg_id
 			if(isNumeric(aux)){
-				uint16_t msg_id = (uint8_t)aux.toInt();
+				// uint16_t msg_id = (uint8_t)aux.toInt();
 				line = line.substring(index+1);
 			}else return "";
 
@@ -1928,7 +1922,7 @@ bool MODEMBGXX::get_clock(tm* t){
 	if(response.length() == 0)
 		return false;
 
-	uint8_t index = 0;
+	int8_t index = 0;
 
 	index = response.indexOf("/");
 	if(index == -1)
@@ -2151,10 +2145,10 @@ bool MODEMBGXX::switch_radio_off(){
 	#endif
 	if(check_command("AT+CFUN=0","OK","ERROR",15000)){
 		for (uint8_t i = 0; i < MAX_CONNECTIONS; i++) {
-			data_pending[i]    = false;
 			apn[i].connected = false;
 		}
 		for (uint8_t i = 0; i < MAX_TCP_CONNECTIONS; i++) {
+			data_pending[i]    = false;
 			tcp[i].connected = false;
 		}
 		for (uint8_t i = 0; i < MAX_MQTT_CONNECTIONS; i++) {
@@ -2164,7 +2158,7 @@ bool MODEMBGXX::switch_radio_off(){
 	}else return false;
 }
 
-String MODEMBGXX::get_imei(uint32_t wait) {
+String MODEMBGXX::get_imei() {
 	if(imei != "")
 		return imei;
 
@@ -2173,25 +2167,19 @@ String MODEMBGXX::get_imei(uint32_t wait) {
 	return imei;
 }
 
-String MODEMBGXX::get_ccid(uint32_t wait) {
-	uint32_t timeout = millis() + wait;
-
+String MODEMBGXX::get_ccid() {
 	String command = "AT+QCCID";
 	return get_command(command,"+QCCID: ",1000);
 }
 
-String MODEMBGXX::get_imsi(uint32_t wait) {
-	uint32_t timeout = millis() + wait;
-
+String MODEMBGXX::get_imsi() {
 	String command = "AT+CIMI";
 	return get_command(command,300);
 }
 
-String MODEMBGXX::get_ip(uint8_t cid, uint32_t wait) {
+String MODEMBGXX::get_ip(uint8_t cid) {
 	if(cid == 0 || cid > MAX_CONNECTIONS)
 		return "";
-
-	uint32_t timeout = millis() + wait;
 
 	String command = "AT+CGPADDR="+String(cid);
 	return get_command(command,"+CGPADDR: "+String(cid)+",",300);
@@ -2235,6 +2223,21 @@ bool MODEMBGXX::MQTT_setup(uint8_t clientID, uint8_t contextID, String will_topi
 	String s = "AT+QMTCFG=\"pdpcid\","+String(clientID)+","+String(mqtt[clientID].contextID);
 	check_command(s.c_str(),"OK",2000);
 		//return false;
+
+	/*
+	 * By the BG96 MQTT Application Note V1.1:
+	 *
+	 * +QMTCFG: "recv/mode",<msg_recv_mode>[,<msg_len_enable>]
+	 *
+	 * <msg_recv_mode> Integer type. The MQTT message receiving mode.
+	 *   0 MQTT message received from server will be contained in URC
+	 *   1 MQTT message received from server will not be contained in URC
+	 * <msg_len_enable> Integer type.
+	 *   0 Length of MQTT message received from server will not be contained in URC
+	 *   1 Length of MQTT message received from server will be contained in URC
+	 *
+	 * URC = Unsolicited Result Code
+	 */
 
 	// store messages on buffer, report payload_len on read
 	s = "AT+QMTCFG=\"recv/mode\","+String(clientID)+","+String(MQTT_RECV_MODE)+","+String(MQTT_RECV_MODE);
@@ -2478,10 +2481,8 @@ void MODEMBGXX::MQTT_readAllBuffers(uint8_t clientID) {
 		return;
 
 	String s = "";
-	int8_t i = 0;
-
 	if(MQTT_connected(clientID)){
-		for(uint8_t i=0; i<5; i++){
+		for(uint8_t i = 0; i < 5; i++){
 			s = "AT+QMTRECV="+String(clientID)+","+String(i);
 			get_command(s.c_str(),400);
 			mqtt_buffer[i] = -1;
@@ -2574,7 +2575,6 @@ void MODEMBGXX::MQTT_readMessages(uint8_t clientID) {
 
 	String s = "";
 	int8_t i = 0;
-	bool read = false;
 
 	/* check if a buffer has messages */
 	if(mqtt_pool_timeout < millis()){
@@ -2602,7 +2602,7 @@ void MODEMBGXX::MQTT_readMessages(uint8_t clientID) {
 * read tcp buffers from modem
 */
 void MODEMBGXX::tcp_check_data_pending() {
-	for (uint8_t index = 0; index < MAX_CONNECTIONS; index++) {
+	for (uint8_t index = 0; index < MAX_TCP_CONNECTIONS; index++) {
 		if (!data_pending[index]) continue;
 
 		tcp_read_buffer(index);
@@ -2745,6 +2745,10 @@ void MODEMBGXX::send_command(uint8_t *command, uint16_t size) {
 	}
 	modem->flush();
 
+}
+
+String MODEMBGXX::raw_command(String command, uint32_t timeout){
+	return get_command(command, timeout);
 }
 
 String MODEMBGXX::get_command(String command, uint32_t timeout){
@@ -2971,6 +2975,10 @@ bool MODEMBGXX::wait_command(String filter, uint32_t timeout){
 	}
 
 	return false;
+}
+
+bool MODEMBGXX::raw_check_command(String command, String ok_result, uint32_t wait) {
+	return check_command(command, ok_result, wait);
 }
 
 // use it when OK comes in the end
