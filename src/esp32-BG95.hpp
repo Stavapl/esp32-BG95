@@ -83,6 +83,15 @@ public:
 	 */
 	bool setup(uint8_t cid, String apn, String username, String password);
 
+	/*
+	 * Set error message format (AT+CMEE)
+	 * 
+	 * n = 0: Disable result code
+	 * n = 1: Enable result code and use numeric values
+	 * n = 2: Enable result code and use verbose values
+	 */
+	bool set_error_message_format(int n);
+
 	bool set_ssl(uint8_t ssl_cid);
 
 	//
@@ -224,9 +233,6 @@ public:
 	void MQTT_readAllBuffers(uint8_t clientID);
 
 	void log_status();
-
-	bool raw_check_command(String command, String ok_result, uint32_t wait = 5000);
-	String raw_command(String command, uint32_t timeout = 300);
 
 private:
 	struct SMS

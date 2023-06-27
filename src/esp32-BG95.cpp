@@ -196,6 +196,14 @@ bool MODEMBGXX::setup(uint8_t cid, String apn_, String username, String password
 	return check_command("AT+QICSGP=" + String(cid) + ",1,\"" + apn_ + "\",\"" + username + "\",\"" + password + "\"", "OK", "ERROR"); // replacing CGDCONT
 }
 
+bool MODEMBGXX::set_error_message_format(int n)
+{
+	if (n >= 0 && n <= 2) {
+		return check_command("AT+CMEE=" + String(n), "OK", 300);
+	}
+	return false;
+}
+
 bool MODEMBGXX::set_ssl(uint8_t ssl_cid)
 {
 
@@ -3188,11 +3196,6 @@ void MODEMBGXX::send_command(uint8_t *command, uint16_t size)
 	modem->flush();
 }
 
-String MODEMBGXX::raw_command(String command, uint32_t timeout)
-{
-	return get_command(command, timeout);
-}
-
 String MODEMBGXX::get_command(String command, uint32_t timeout)
 {
 
@@ -3449,11 +3452,6 @@ bool MODEMBGXX::wait_command(String filter, uint32_t timeout)
 	}
 
 	return false;
-}
-
-bool MODEMBGXX::raw_check_command(String command, String ok_result, uint32_t wait)
-{
-	return check_command(command, ok_result, wait);
 }
 
 // use it when OK comes in the end
