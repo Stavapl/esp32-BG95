@@ -27,6 +27,10 @@
 #define MQTT_STATE_CONNECTED 3
 #define MQTT_STATE_DISCONNECTING 4
 
+// PRIORITY TYPES
+#define PRIORITY_GNSS 0
+#define PRIORITY_WWAN 1
+
 // CONSTANTS
 #define AT_WAIT_RESPONSE 10 // milis
 #define AT_TERMINATOR '\r'	// \n
@@ -218,6 +222,14 @@ public:
 	 * get gps position
 	 */
 	String get_position();
+
+	/*
+	 * set priority mode (GNSS vs WWAN) (AT+QGPSCFG="priority",priority_type,save)
+	 *
+	 * priority_type: one of PRIORITY_GNSS, PRIORITY_WWAN 
+	 * save: true if save to NVRAM
+	 */
+	bool set_priority_mode(int priority_type, bool save = false);
 
 	// --- MQTT ---
 	void MQTT_init(bool (*callback)(uint8_t clientID, String topic, String payload));

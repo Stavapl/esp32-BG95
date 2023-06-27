@@ -2502,6 +2502,14 @@ String MODEMBGXX::get_position()
 	return response;
 }
 
+bool MODEMBGXX::set_priority_mode(int priority_type, bool save)
+{
+	if (priority_type != PRIORITY_GNSS && priority_type != PRIORITY_WWAN)
+		return false;
+	
+	return check_command("AT+QGPSCFG=\"priority\"," + String(priority_type) + "," + String(int(save)), "OK", 300);
+}
+
 bool MODEMBGXX::switch_radio_off()
 {
 #ifdef DEBUG_BG95
