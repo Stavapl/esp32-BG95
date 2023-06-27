@@ -8,28 +8,28 @@
 
 #include "editable_macros.h"
 
-#define GSM 											1
-#define GPRS 											2
-#define NB 												3
-#define CATM1 										4
-#define AUTO 											5
+#define GSM 						1
+#define GPRS 						2
+#define NB 							3
+#define CATM1 						4
+#define AUTO 						5
 
-#define NOT_REGISTERED						0
-#define REGISTERED								1
-#define CONNETING									2
-#define DENIED										3
-#define UNKNOW										4
-#define ROAMING										4
+#define NOT_REGISTERED				0
+#define REGISTERED					1
+#define CONNECTING					2
+#define DENIED						3
+#define UNKNOWN						4
+#define ROAMING						5
 
 #define MQTT_STATE_DISCONNECTED 	0
 #define MQTT_STATE_INITIALIZING 	1
 #define MQTT_STATE_CONNECTING 		2
-#define MQTT_STATE_CONNECTED 			3
+#define MQTT_STATE_CONNECTED 		3
 #define MQTT_STATE_DISCONNECTING 	4
 
 // CONSTANTS
-#define   AT_WAIT_RESPONSE      	10 // milis
-#define   AT_TERMINATOR     		'\r' // \n
+#define AT_WAIT_RESPONSE      		10 // milis
+#define AT_TERMINATOR     			'\r' // \n
 
 #define MAX_SMS 10
 

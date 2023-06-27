@@ -1290,22 +1290,22 @@ String MODEMBGXX::parse_command_line(String line, bool set_data_pending) {
 			int radio_state = line.toInt();
 			#ifdef DEBUG_BG95
 			switch(radio_state){
-				case 0:
+				case NOT_REGISTERED:
 					log("EGPRS not registered");
 					break;
-				case 1:
-					log("EGPRS register");
+				case REGISTERED:
+					log("EGPRS registered");
 					break;
-				case 2:
+				case CONNECTING:
 					log("EGPRS connecting");
 					break;
-				case 3:
+				case DENIED:
 					log("EGPRS registration denied");
 					break;
-				case 4:
-					log("EGPRS Unknow");
+				case UNKNOWN:
+					log("EGPRS Unknown");
 					break;
-				case 5:
+				case ROAMING:
 					log("EGPRS registered, roaming");
 					break;
 			}
@@ -1320,22 +1320,22 @@ String MODEMBGXX::parse_command_line(String line, bool set_data_pending) {
 		if(isNumeric(line)){
 			int8_t radio_state = line.toInt();
 			switch(radio_state){
-				case 0:
+				case NOT_REGISTERED:
 					log("LTE not registered");
 					break;
-				case 1:
+				case REGISTERED:
 					log("LTE registered");
 					break;
-				case 2:
+				case CONNECTING:
 					log("LTE connecting");
 					break;
-				case 3:
+				case DENIED:
 					log("LTE registration denied");
 					break;
-				case 4:
-					log("LTE Unknow");
+				case UNKNOWN:
+					log("LTE Unknown");
 					break;
-				case 5:
+				case ROAMING:
 					log("LTE registered, roaming");
 					break;
 			}
