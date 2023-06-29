@@ -1439,15 +1439,6 @@ String MODEMBGXX::check_connection_state(uint8_t connectionID)
 	return get_command(query);
 }
 
-/*
-void MODEMBGXX::check_modem_buffers() {
-	for (uint8_t cid = 0; cid < MAX_TCP_CONNECTIONS; cid++) {
-		if(tcp[cid]) // 2 is reserverd for MQTT
-			data_pending[cid] = true;
-	}
-}
-*/
-
 String MODEMBGXX::check_messages()
 {
 
@@ -1466,8 +1457,6 @@ String MODEMBGXX::check_messages()
 
 		if (command.length() == 0)
 			continue;
-		// if (command.length() == 1 && command.startsWith(">")) continue;
-		// if (command.length() == 2 && command.startsWith("> ")) continue;
 
 		command = parse_command_line(command, true);
 	}
@@ -2367,7 +2356,6 @@ void MODEMBGXX::sync_clock_ntp(bool force)
 	else
 		return;
 
-	// get_command_no_ok("AT+QNTP=1,\"202.120.2.101\",123","+QNTP: ",60000);
 	if (!apn[0].connected)
 		return;
 

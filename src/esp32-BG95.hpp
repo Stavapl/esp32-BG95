@@ -245,7 +245,6 @@ public:
 	void MQTT_readAllBuffers(uint8_t clientID);
 
 	void log_status();
-
 private:
 	struct SMS
 	{
@@ -437,7 +436,7 @@ private:
 	// process pending SMS messages
 	void process_sms(uint8_t index);
 
-	// void check_modem_buffers();
+	// Read and parse data from modem serial port
 	String check_messages();
 
 	String parse_command_line(String line, bool set_data_pending = true);
