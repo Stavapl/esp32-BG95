@@ -338,6 +338,7 @@ private:
 	APN apn[MAX_CONNECTIONS];
 	TCP tcp[MAX_TCP_CONNECTIONS];
 	MQTT mqtt[MAX_MQTT_CONNECTIONS];
+	MQTT mqtt_previous[MAX_MQTT_CONNECTIONS];
 	HTTP http;
 
 	mbedtls_md_context_t ctx;
@@ -431,6 +432,7 @@ private:
 	bool MQTT_isOpened(uint8_t clientID, const char *host, uint16_t port);
 	bool MQTT_close(uint8_t clientID);
 	void MQTT_checkConnection();
+	bool _MQTT_check_in_progress = false;
 	void MQTT_readMessages(uint8_t clientID);
 
 	// check for new SMS messages

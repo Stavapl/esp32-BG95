@@ -1864,6 +1864,7 @@ String MODEMBGXX::parse_command_line(String line, bool set_data_pending)
 		index = line.indexOf(",");
 		if (index > -1)
 		{
+			this->_MQTT_check_in_progress = false;
 			uint8_t cidx = line.substring(0, index).toInt();
 			if (cidx < MAX_MQTT_CONNECTIONS)
 			{
@@ -2625,6 +2626,9 @@ bool MODEMBGXX::MQTT_setup(uint8_t clientID, uint8_t contextID, String will_topi
 	check_command(s.c_str(), "OK", 2000);
 	// return false;
 
+	s = "AT+QMTCFG=\"keepalive\"," + String(clientID) + ",0";
+	check_command(s.c_str(), "OK", 2000);
+
 	return true;
 }
 
@@ -2700,7 +2704,10 @@ bool MODEMBGXX::MQTT_connected(uint8_t clientID)
 	if (clientID > MAX_MQTT_CONNECTIONS)
 		return false;
 
-	return mqtt[clientID].connected;
+	if(this->_MQTT_check_in_progress == false)
+		return mqtt[clientID].connected;
+	else
+		return mqtt_previous[clientID].connected;
 }
 
 /*
@@ -2909,9 +2916,12 @@ void MODEMBGXX::MQTT_readAllBuffers(uint8_t clientID)
  */
 void MODEMBGXX::MQTT_checkConnection()
 {
+	this->_MQTT_check_in_progress = true;
 
 	for (uint8_t i = 0; i < MAX_MQTT_CONNECTIONS; i++)
 	{
+		mqtt_previous[i].connected = mqtt[i].connected;
+
 		mqtt[i].connected = false;
 		mqtt[i].socket_state = MQTT_STATE_DISCONNECTED;
 	}
