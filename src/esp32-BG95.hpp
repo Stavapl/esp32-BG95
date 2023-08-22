@@ -37,6 +37,9 @@
 
 #define MAX_SMS 10
 
+#define now_us esp_timer_get_time()
+#define TIMEIT(func) do { int64_t s=now_us; func; int64_t d=(now_us-s); ESP_LOGE("TIMEIT", #func " took %fs", d/1000.0/1000.0); } while(0);
+
 class MODEMBGXX
 {
 public:

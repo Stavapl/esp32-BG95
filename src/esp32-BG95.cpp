@@ -13,6 +13,7 @@ void MODEMBGXX::init_port(uint32_t baudrate, uint32_t serial_config, uint8_t rx_
 
 	// modem->begin(baudrate);
 	modem->begin(baudrate, serial_config, rx_pin, tx_pin);
+	modem->setTimeout(50);
 #ifdef DEBUG_BG95
 	log("modem bus inited");
 #endif
@@ -45,11 +46,15 @@ bool MODEMBGXX::init(uint8_t radio, uint16_t cops, uint8_t pwkey)
 	op.radio = radio;
 	op.cops = cops;
 
+	TIMEIT(
 	if (!powerCycle())
 		return false;
+	);
 
+	TIMEIT(
 	if (!config())
 		return false;
+	);
 
 	if (!configure_radio_mode(radio, cops))
 		return false;
@@ -1458,7 +1463,7 @@ String MODEMBGXX::check_messages()
 		if (command.length() == 0)
 			continue;
 
-		command = parse_command_line(command, true);
+		TIMEIT(command = parse_command_line(command, true));
 	}
 	return command;
 }

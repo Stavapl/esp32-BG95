@@ -1,6 +1,6 @@
 
-#define   DEBUG_BG95 // uncomment for production
-#define   DEBUG_BG95_HIGH // uncomment for production
+// #define   DEBUG_BG95 // comment for production
+// #define   DEBUG_BG95_HIGH // comment for production
 
 #define   MAX_CONNECTIONS       	4
 #define   MAX_TCP_CONNECTIONS     2
