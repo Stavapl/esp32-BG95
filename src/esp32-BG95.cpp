@@ -2626,7 +2626,7 @@ bool MODEMBGXX::MQTT_setup(uint8_t clientID, uint8_t contextID, String will_topi
 	check_command(s.c_str(), "OK", 2000);
 	// return false;
 
-	s = "AT+QMTCFG=\"keepalive\"," + String(clientID) + ",0";
+	s = "AT+QMTCFG=\"keepalive\"," + String(clientID) + ",300";
 	check_command(s.c_str(), "OK", 2000);
 
 	return true;
