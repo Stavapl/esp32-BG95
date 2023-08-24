@@ -189,19 +189,6 @@ public:
 	uint16_t tcp_has_data(uint8_t clientID);
 	void tcp_check_data_pending();
 
-	// --- HTTP ---
-	bool http_get(String host, String path, String token, uint8_t clientID, uint8_t contextID);
-	bool https_get(String host, String path, String token, uint8_t clientID, uint8_t sslClientID, uint8_t contextID);
-	bool https_post(String host, String path, String body, String token, uint8_t clientID, uint8_t sslClientID, uint8_t contextID);
-	bool https_post_json(String host, String path, String body, String token, uint8_t clientID, uint8_t sslClientID, uint8_t contextID);
-	uint16_t http_get_header_length(uint8_t clientID);
-	bool http_wait_response(uint8_t clientID);
-	void http_parse_header(char *data, uint16_t len);
-	String http_response_status();
-	String http_md5();
-	uint16_t http_get_body_size();
-	uint16_t http_get_body(uint8_t clientID, char *data, uint16_t len, uint16_t wait = 10000);
-	bool http_check_md5(char *data, uint16_t len);
 	// --- CLOCK ---
 	/*
 	 * use it to get network clock
@@ -304,14 +291,6 @@ private:
 		bool connected;
 	};
 
-	struct HTTP
-	{
-		uint16_t body_len;
-		char md5[16];
-		char responseStatus[32];
-		char contentType[32];
-	};
-
 	Modem op = {
 		/* pwkey */ 0,
 		/* ready */ false,
@@ -339,7 +318,6 @@ private:
 	TCP tcp[MAX_TCP_CONNECTIONS];
 	MQTT mqtt[MAX_MQTT_CONNECTIONS];
 	MQTT mqtt_previous[MAX_MQTT_CONNECTIONS];
-	HTTP http;
 
 	mbedtls_md_context_t ctx;
 
