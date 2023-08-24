@@ -35,6 +35,8 @@
 #define AT_WAIT_RESPONSE 10 // milis
 #define AT_TERMINATOR '\r'	// \n
 
+#define HTTP_CHUNK_SIZE 20480 // bytes
+
 #define MAX_SMS 10
 
 #define now_us esp_timer_get_time()
@@ -233,6 +235,10 @@ public:
 	int8_t MQTT_unSubscribeTopic(uint8_t clientID, uint16_t msg_id, String topic[], uint8_t len);
 	int8_t MQTT_publish(uint8_t clientID, uint16_t msg_id, uint8_t qos, uint8_t retain, String topic, String msg);
 	void MQTT_readAllBuffers(uint8_t clientID);
+
+	// --- HTTP ---
+	bool HTTP_config(uint8_t contextID=1);
+	void HTTP_get(String url, void (*callback)(int16_t http_status, size_t content_length, char *chunk, size_t offset, size_t chunksize));
 
 	void log_status();
 private:
@@ -441,6 +447,8 @@ private:
 	String get_command_no_ok(String command, String filter, uint32_t timeout = 300);
 	String get_command_no_ok_critical(String command, String filter, uint32_t timeout = 300);
 	String mqtt_message_received(String line);
+
+	String _HTTP_response_received(String line);
 
 	bool wait_command(String command, uint32_t timeout = 300);
 

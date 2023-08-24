@@ -2,6 +2,7 @@
 
 bool (*parseMQTTmessage)(uint8_t, String, String);
 void (*tcpOnClose)(uint8_t clientID);
+void (*httpCallback)(int16_t http_status, size_t content_length, char *chunk, size_t offset, size_t chunksize);
 
 void MODEMBGXX::init_port(uint32_t baudrate, uint32_t serial_config)
 {
@@ -1459,6 +1460,10 @@ String MODEMBGXX::parse_command_line(String line, bool set_data_pending)
 			}
 		}
 	}
+	else if (line.startsWith("+QHTTPGET: "))
+	{
+		return _HTTP_response_received(line);
+	}
 	else if (line.startsWith("OK"))
 		return "";
 
@@ -2569,6 +2574,191 @@ void MODEMBGXX::MQTT_readMessages(uint8_t clientID)
 	return;
 }
 
+// --- --- ---
+
+// --- HTTP ---
+bool MODEMBGXX::HTTP_config(uint8_t contextID)
+{
+	String s;
+	s = "AT+QHTTPCFG=\"contextid\"," + String(contextID);
+	if(check_command(s, "OK", 500) == false)
+		return false;
+
+	s = "AT+QHTTPCFG=\"responseheader\",0";
+	if(check_command(s, "OK", 500) == false)
+		return false;
+
+	s = "AT+QHTTPCFG=\"requestheader\",0";
+	if(check_command(s, "OK", 500) == false)
+		return false;
+
+	return true;
+}
+
+void MODEMBGXX::HTTP_get(String url, void (*callback)(int16_t http_status, size_t content_length, char *chunk, size_t offset, size_t chunksize))
+{
+	String s;
+
+	s = "AT+QHTTPURL=" + String(url.length()) + ",5";
+	send_command(s);
+	delay(AT_WAIT_RESPONSE);
+
+	String connect_resp = modem->readStringUntil(AT_TERMINATOR);
+	connect_resp.trim();
+	if(connect_resp.length() == 0)
+		connect_resp = modem->readStringUntil(AT_TERMINATOR);
+	connect_resp.trim();
+	log("connect_resp = " + connect_resp);
+	if(connect_resp.indexOf("CME ERROR") > -1) {
+		return;
+	}
+	if(connect_resp.indexOf("CONNECT") < 0) {
+		#ifdef DEBUG_BG95_HIGH
+		log("no CONNECT found");
+		#endif
+		return;
+	}
+
+	if(check_command(url, "OK", 1000) != true)
+		return;	
+
+	if(check_command("AT+QHTTPGET=300", "OK", 500) != true)
+		return;
+
+	httpCallback = callback;
+}
+
+// sample responses to parse:
+// +QHTTPGET: 0,200,970704
+// +QHTTPGET: Http timeout
+String MODEMBGXX::_HTTP_response_received(String line)
+{
+	String values;
+
+	if(!httpCallback)
+		return "";
+
+	values = line.substring(11);
+	if(!isDigit(values[0])) {
+		httpCallback(-1, 0, NULL, 0, 0);
+		return "";
+	}
+
+	int sepindex1 = values.indexOf(",");
+	int sepindex2 = values.lastIndexOf(",");
+	uint16_t http_status = (uint16_t)values.substring(sepindex1+1,sepindex2).toInt();
+	size_t content_length = (size_t)values.substring(sepindex2+1).toInt();
+
+	if(http_status != 200)
+		httpCallback(http_status, content_length, NULL, 0, 0);
+
+	send_command("AT+QHTTPREAD=30");
+	delay(AT_WAIT_RESPONSE);
+
+	String connect_resp = modem->readStringUntil(AT_TERMINATOR);
+	connect_resp.trim();
+	if(connect_resp.length() == 0)
+		connect_resp = modem->readStringUntil(AT_TERMINATOR);
+	connect_resp.trim();
+	#ifdef DEBUG_BG95_HIGH
+	log("connect_resp = " + connect_resp);
+	#endif
+	if(connect_resp.indexOf("CME ERROR") > -1) {
+		httpCallback(-1, content_length, NULL, 0, 0);
+		return "";
+	}
+	if(connect_resp.indexOf("CONNECT") < 0) {
+		#ifdef DEBUG_BG95_HIGH
+		log("no CONNECT found");
+		#endif
+		httpCallback(-1, content_length, NULL, 0, 0);
+		return "";
+	}
+
+	if(modem->peek() == 0x0A) 
+		modem->read(); // 0x0A
+
+	delay(AT_WAIT_RESPONSE);
+
+	// got into data stream already
+	size_t total_bytes_read = 0;
+	size_t chunk_offset = 0;
+	size_t bytes_read = 0;
+
+	unsigned long total_timeout = millis() + 300000;
+
+	bool first_byte_read = false;
+
+	size_t bodybufsize = HTTP_CHUNK_SIZE;
+	char* bodybuf = (char*)malloc(bodybufsize);
+
+	while(total_bytes_read < content_length && millis() < total_timeout) {
+		memset(bodybuf, 0, bodybufsize);
+		unsigned long timeout = millis() + 10000;
+
+		bytes_read = 0; 
+		while(bytes_read < bodybufsize && total_bytes_read+bytes_read < content_length && millis() < timeout)  {
+			bytes_read += modem->read(bodybuf+bytes_read, 1);
+
+			if(!first_byte_read) {
+				first_byte_read = true;
+				#ifdef DEBUG_BG95_HIGH
+				Serial.printf("FIRST BYTE READ IS 0x%X\n", bodybuf[0]);
+				#endif
+			}
+		}
+
+		if(millis() >= timeout) {
+			#ifdef DEBUG_BG95_HIGH
+			log("timeout");
+			#endif
+			httpCallback(-1, content_length, NULL, 0, 0);
+			free(bodybuf);
+			return "";
+		}
+		total_bytes_read += bytes_read;
+		#ifdef DEBUG_BG95_HIGH
+		log("chunk read: bytes_read=" + String(bytes_read) + " / total_bytes_read=" + String(total_bytes_read) + " / content_length=" + String(content_length));
+		#endif
+		httpCallback(http_status, content_length, bodybuf, chunk_offset, bytes_read);
+		chunk_offset += bytes_read;
+	}
+
+	#ifdef DEBUG_BG95_HIGH
+	Serial.printf("LAST BYTE READ is 0x%X\n", bodybuf[bytes_read-1]);
+	#endif
+
+	if(millis() >= total_timeout) {
+		#ifdef DEBUG_BG95_HIGH
+		log("total timeout reached");
+		#endif
+		httpCallback(-1, content_length, NULL, 0, 0);
+		free(bodybuf);
+		return "";
+	}
+
+	delay(AT_WAIT_RESPONSE);
+
+	String ok_resp = modem->readStringUntil(AT_TERMINATOR);
+	ok_resp.trim();
+	if(ok_resp.length() == 0)
+		ok_resp = modem->readStringUntil(AT_TERMINATOR);
+	#ifdef DEBUG_BG95_HIGH
+	log("ok_resp = " + ok_resp);
+	#endif
+
+	String final_resp = modem->readStringUntil(AT_TERMINATOR);
+	final_resp.trim();
+	if(final_resp.length() == 0)
+		final_resp = modem->readStringUntil(AT_TERMINATOR);
+	#ifdef DEBUG_BG95_HIGH
+	log("final_resp = " + final_resp);
+	#endif
+
+	free(bodybuf);
+
+	return "";
+}
 // --- --- ---
 
 // --- private TCP ---
