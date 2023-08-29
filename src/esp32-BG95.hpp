@@ -35,8 +35,6 @@
 #define AT_WAIT_RESPONSE 10 // milis
 #define AT_TERMINATOR '\r'	// \n
 
-#define HTTP_CHUNK_SIZE 20480 // bytes
-
 #define MAX_SMS 10
 
 #define now_us esp_timer_get_time()
@@ -238,7 +236,10 @@ public:
 
 	// --- HTTP ---
 	bool HTTP_config(uint8_t contextID=1);
-	void HTTP_get(String url, void (*callback)(int16_t http_status, size_t content_length, char *chunk, size_t offset, size_t chunksize));
+	void HTTP_GET_download(String url, String filename, 
+		void (*pending_callback)(int16_t http_status, size_t content_length),
+		void (*finished_callback)(void),
+		void (*failed_callback)(void));
 
 	void log_status();
 private:
@@ -449,6 +450,11 @@ private:
 	String mqtt_message_received(String line);
 
 	String _HTTP_response_received(String line);
+	String _HTTP_file_downloaded(String line);
+	String _HTTP_file_download_error(String line);
+	bool _HTTP_request_in_progress = false;
+	size_t _HTTP_download_content_length = 0;
+	String _HTTP_download_filename;
 
 	bool wait_command(String command, uint32_t timeout = 300);
 

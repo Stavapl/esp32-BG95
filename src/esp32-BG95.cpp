@@ -2,7 +2,9 @@
 
 bool (*parseMQTTmessage)(uint8_t, String, String);
 void (*tcpOnClose)(uint8_t clientID);
-void (*httpCallback)(int16_t http_status, size_t content_length, char *chunk, size_t offset, size_t chunksize);
+void (*httpPendingCallback)(int16_t http_status, size_t content_length);
+void (*httpFinishedCallback)(void);
+void (*httpFailedCallback)(void);
 
 void MODEMBGXX::init_port(uint32_t baudrate, uint32_t serial_config)
 {
@@ -13,8 +15,9 @@ void MODEMBGXX::init_port(uint32_t baudrate, uint32_t serial_config, uint8_t rx_
 {
 
 	// modem->begin(baudrate);
+	modem->setRxBufferSize(10240);
 	modem->begin(baudrate, serial_config, rx_pin, tx_pin);
-	modem->setTimeout(50);
+	modem->setTimeout(90);
 #ifdef DEBUG_BG95
 	log("modem bus inited");
 #endif
@@ -253,6 +256,10 @@ bool MODEMBGXX::loop(uint32_t wait)
 	{
 
 		get_state();
+
+		// file system status
+		get_command("AT+QFLDS=\"UFS\"");
+		get_command("AT+QFLST=\"*\"");
 
 		MQTT_checkConnection();
 
@@ -1462,7 +1469,14 @@ String MODEMBGXX::parse_command_line(String line, bool set_data_pending)
 	}
 	else if (line.startsWith("+QHTTPGET: "))
 	{
-		return _HTTP_response_received(line);
+		return _HTTP_response_received(line.substring(11));
+	}
+	else if (line.startsWith("+QHTTPREADFILE: ") && this->_HTTP_request_in_progress) {
+		return _HTTP_file_downloaded(line.substring(16));
+	}
+	else if (line.startsWith("+CME ERROR: ") && this->_HTTP_request_in_progress)
+	{
+		return _HTTP_file_download_error(line.substring(12));
 	}
 	else if (line.startsWith("OK"))
 		return "";
@@ -2595,11 +2609,15 @@ bool MODEMBGXX::HTTP_config(uint8_t contextID)
 	return true;
 }
 
-void MODEMBGXX::HTTP_get(String url, void (*callback)(int16_t http_status, size_t content_length, char *chunk, size_t offset, size_t chunksize))
+void MODEMBGXX::HTTP_GET_download(String url, String filename, 
+	void (*pending_callback)(int16_t http_status, size_t content_length),
+		void (*finished_callback)(void),
+		void (*failed_callback)(void))
 {
-	String s;
+	check_command("AT+QFDEL=\"" + filename + "\"", "OK", 1000);
+	this->_HTTP_download_filename = filename;
 
-	s = "AT+QHTTPURL=" + String(url.length()) + ",5";
+	String s = "AT+QHTTPURL=" + String(url.length()) + ",5";
 	send_command(s);
 	delay(AT_WAIT_RESPONSE);
 
@@ -2622,25 +2640,24 @@ void MODEMBGXX::HTTP_get(String url, void (*callback)(int16_t http_status, size_
 	if(check_command(url, "OK", 1000) != true)
 		return;	
 
-	if(check_command("AT+QHTTPGET=300", "OK", 500) != true)
+	if(check_command("AT+QHTTPGET=120", "OK", 500) != true)
 		return;
 
-	httpCallback = callback;
+	this->_HTTP_request_in_progress = true;
+
+	httpPendingCallback = pending_callback;
+	httpFinishedCallback = finished_callback;
+	httpFailedCallback = failed_callback;
 }
 
 // sample responses to parse:
 // +QHTTPGET: 0,200,970704
 // +QHTTPGET: Http timeout
-String MODEMBGXX::_HTTP_response_received(String line)
+String MODEMBGXX::_HTTP_response_received(String values)
 {
-	String values;
-
-	if(!httpCallback)
-		return "";
-
-	values = line.substring(11);
 	if(!isDigit(values[0])) {
-		httpCallback(-1, 0, NULL, 0, 0);
+		if(httpFailedCallback)
+			httpFailedCallback();
 		return "";
 	}
 
@@ -2648,115 +2665,61 @@ String MODEMBGXX::_HTTP_response_received(String line)
 	int sepindex2 = values.lastIndexOf(",");
 	uint16_t http_status = (uint16_t)values.substring(sepindex1+1,sepindex2).toInt();
 	size_t content_length = (size_t)values.substring(sepindex2+1).toInt();
+	this->_HTTP_download_content_length = content_length;
 
-	if(http_status != 200)
-		httpCallback(http_status, content_length, NULL, 0, 0);
-
-	send_command("AT+QHTTPREAD=30");
-	delay(AT_WAIT_RESPONSE);
-
-	String connect_resp = modem->readStringUntil(AT_TERMINATOR);
-	connect_resp.trim();
-	if(connect_resp.length() == 0)
-		connect_resp = modem->readStringUntil(AT_TERMINATOR);
-	connect_resp.trim();
-	#ifdef DEBUG_BG95_HIGH
-	log("connect_resp = " + connect_resp);
-	#endif
-	if(connect_resp.indexOf("CME ERROR") > -1) {
-		httpCallback(-1, content_length, NULL, 0, 0);
+	if(http_status != 200) {
+		if(httpPendingCallback)
+			httpPendingCallback(http_status, content_length);
+		if(httpFailedCallback)
+			httpFailedCallback();
 		return "";
 	}
-	if(connect_resp.indexOf("CONNECT") < 0) {
-		#ifdef DEBUG_BG95_HIGH
-		log("no CONNECT found");
-		#endif
-		httpCallback(-1, content_length, NULL, 0, 0);
-		return "";
-	}
+	modem->readStringUntil(AT_TERMINATOR);
 
-	if(modem->peek() == 0x0A) 
-		modem->read(); // 0x0A
+	check_command("AT+QHTTPREADFILE=\"" + this->_HTTP_download_filename + "\",300", "OK", 1000);
+	return "";
+}
 
-	delay(AT_WAIT_RESPONSE);
-
-	// got into data stream already
-	size_t total_bytes_read = 0;
-	size_t chunk_offset = 0;
-	size_t bytes_read = 0;
-
-	unsigned long total_timeout = millis() + 300000;
-
-	bool first_byte_read = false;
-
-	size_t bodybufsize = HTTP_CHUNK_SIZE;
-	char* bodybuf = (char*)malloc(bodybufsize);
-
-	while(total_bytes_read < content_length && millis() < total_timeout) {
-		memset(bodybuf, 0, bodybufsize);
-		unsigned long timeout = millis() + 10000;
-
-		bytes_read = 0; 
-		while(bytes_read < bodybufsize && total_bytes_read+bytes_read < content_length && millis() < timeout)  {
-			bytes_read += modem->read(bodybuf+bytes_read, 1);
-
-			if(!first_byte_read) {
-				first_byte_read = true;
-				#ifdef DEBUG_BG95_HIGH
-				Serial.printf("FIRST BYTE READ IS 0x%X\n", bodybuf[0]);
-				#endif
-			}
-		}
-
-		if(millis() >= timeout) {
-			#ifdef DEBUG_BG95_HIGH
-			log("timeout");
-			#endif
-			httpCallback(-1, content_length, NULL, 0, 0);
-			free(bodybuf);
-			return "";
-		}
-		total_bytes_read += bytes_read;
-		#ifdef DEBUG_BG95_HIGH
-		log("chunk read: bytes_read=" + String(bytes_read) + " / total_bytes_read=" + String(total_bytes_read) + " / content_length=" + String(content_length));
-		#endif
-		httpCallback(http_status, content_length, bodybuf, chunk_offset, bytes_read);
-		chunk_offset += bytes_read;
-	}
+String MODEMBGXX::_HTTP_file_downloaded(String values)
+{
+	this->_HTTP_request_in_progress = false;
 
 	#ifdef DEBUG_BG95_HIGH
-	Serial.printf("LAST BYTE READ is 0x%X\n", bodybuf[bytes_read-1]);
+	log("HTTP file downloaded: " + values);
 	#endif
 
-	if(millis() >= total_timeout) {
-		#ifdef DEBUG_BG95_HIGH
-		log("total timeout reached");
-		#endif
-		httpCallback(-1, content_length, NULL, 0, 0);
-		free(bodybuf);
+	if(values[0] != '0' ) {	
+		if(httpFailedCallback)
+			httpFailedCallback();
 		return "";
 	}
 
-	delay(AT_WAIT_RESPONSE);
+	bool size_valid = check_command("AT+QFLST=\""+this->_HTTP_download_filename+"\"", 
+		"+QFLST: \""+this->_HTTP_download_filename+"\"," + String(this->_HTTP_download_content_length),
+		1000
+	);
+	if(!size_valid) {
+		#ifdef DEBUG_BG95_HIGH
+		log("downloaded file size does not match http response content-length");
+		#endif
+		if(httpFailedCallback)
+			httpFailedCallback();
+		return "";
+	}
 
-	String ok_resp = modem->readStringUntil(AT_TERMINATOR);
-	ok_resp.trim();
-	if(ok_resp.length() == 0)
-		ok_resp = modem->readStringUntil(AT_TERMINATOR);
+	if(httpFinishedCallback)
+		httpFinishedCallback();
+	return "";
+}
+
+String MODEMBGXX::_HTTP_file_download_error(String line)
+{
+	this->_HTTP_request_in_progress = false;
+
 	#ifdef DEBUG_BG95_HIGH
-	log("ok_resp = " + ok_resp);
+	log("file download error: " + line);
+	get_command("AT+QFLST=\"*\"");
 	#endif
-
-	String final_resp = modem->readStringUntil(AT_TERMINATOR);
-	final_resp.trim();
-	if(final_resp.length() == 0)
-		final_resp = modem->readStringUntil(AT_TERMINATOR);
-	#ifdef DEBUG_BG95_HIGH
-	log("final_resp = " + final_resp);
-	#endif
-
-	free(bodybuf);
-
 	return "";
 }
 // --- --- ---
