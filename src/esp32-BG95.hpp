@@ -241,6 +241,9 @@ public:
 		void (*finished_callback)(void),
 		void (*failed_callback)(void));
 
+	// --- FILE ---
+	void FILE_get_chunk(String filename, char *buf, size_t size, size_t offset, size_t* read_bytes);
+
 	void log_status();
 private:
 	struct SMS

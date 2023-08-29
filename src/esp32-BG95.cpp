@@ -1471,7 +1471,8 @@ String MODEMBGXX::parse_command_line(String line, bool set_data_pending)
 	{
 		return _HTTP_response_received(line.substring(11));
 	}
-	else if (line.startsWith("+QHTTPREADFILE: ") && this->_HTTP_request_in_progress) {
+	else if (line.startsWith("+QHTTPREADFILE: ") && this->_HTTP_request_in_progress) 
+	{
 		return _HTTP_file_downloaded(line.substring(16));
 	}
 	else if (line.startsWith("+CME ERROR: ") && this->_HTTP_request_in_progress)
@@ -2677,6 +2678,10 @@ String MODEMBGXX::_HTTP_response_received(String values)
 	modem->readStringUntil(AT_TERMINATOR);
 
 	check_command("AT+QHTTPREADFILE=\"" + this->_HTTP_download_filename + "\",300", "OK", 1000);
+
+	if(httpPendingCallback)
+		httpPendingCallback(http_status, content_length);
+		
 	return "";
 }
 
@@ -2694,18 +2699,18 @@ String MODEMBGXX::_HTTP_file_downloaded(String values)
 		return "";
 	}
 
-	bool size_valid = check_command("AT+QFLST=\""+this->_HTTP_download_filename+"\"", 
-		"+QFLST: \""+this->_HTTP_download_filename+"\"," + String(this->_HTTP_download_content_length),
-		1000
-	);
-	if(!size_valid) {
-		#ifdef DEBUG_BG95_HIGH
-		log("downloaded file size does not match http response content-length");
-		#endif
-		if(httpFailedCallback)
-			httpFailedCallback();
-		return "";
-	}
+	// bool size_valid = check_command("AT+QFLST=\""+this->_HTTP_download_filename+"\"", 
+	// 	"+QFLST: \""+this->_HTTP_download_filename+"\"," + String(this->_HTTP_download_content_length),
+	// 	1000
+	// );
+	// if(!size_valid) {
+	// 	#ifdef DEBUG_BG95_HIGH
+	// 	log("downloaded file size does not match http response content-length");
+	// 	#endif
+	// 	if(httpFailedCallback)
+	// 		httpFailedCallback();
+	// 	return "";
+	// }
 
 	if(httpFinishedCallback)
 		httpFinishedCallback();
@@ -2722,6 +2727,88 @@ String MODEMBGXX::_HTTP_file_download_error(String line)
 	#endif
 	return "";
 }
+// --- --- ---
+
+// --- FILE ---
+
+void MODEMBGXX::FILE_get_chunk(String filename, char *buf, size_t size, size_t offset, size_t* read_bytes)
+{
+	/* 
+	AT+QFOPEN=filename,2
+	+QFOPEN: filehandle
+	OK
+	AT+QFSEEK=filehandle,offset,0
+	OK
+	AT+QFREAD=filehandle,size
+	CONNECT read_length
+	...
+	OK
+	AT+QFCLOSE=filehandle
+	OK
+	*/
+	String s = get_command_critical("AT+QFOPEN=\""+filename+"\",2", "+QFOPEN: ", 1000);
+	if(!isDigit(s[0])) {
+		*read_bytes = 0;
+		return;
+	}
+
+	int filehandle = s.toInt();
+
+	bool ok = check_command("AT+QFSEEK=" + String(filehandle) + "," + String(offset) + ",0", "OK");
+	if(!ok) {
+		*read_bytes = 0;
+		return;
+	}
+
+	send_command("AT+QFREAD=" + String(filehandle) + "," + String(size));
+	delay(AT_WAIT_RESPONSE);
+
+	uint32_t timeout = 1000 + millis();
+	while(timeout >= millis())
+	{
+		if(modem->available()) {
+			String response = modem->readStringUntil(AT_TERMINATOR);
+
+			response.trim();
+
+			if (response.length() == 0)
+				continue; // garbage
+
+#ifdef DEBUG_BG95_HIGH
+			log("<< " + response);
+#endif
+
+			String filter = "CONNECT ";
+			if (response.startsWith(filter))
+				s = response.substring(filter.length());
+		} 
+		if (s.length() > 0)
+			break;
+
+		delay(AT_WAIT_RESPONSE);
+	}
+
+	log("QFREAD CONNECT output = " + s);
+	if(!isDigit(s[0])) {
+		*read_bytes = 0;
+		return;
+	}
+	*read_bytes = s.toInt();
+
+	size_t bytes_really_read = modem->readBytes(buf, *read_bytes);
+	log("bytes_really_read = " + String(bytes_really_read));
+	// log(buf);
+	if(bytes_really_read != *read_bytes) {
+		*read_bytes = 0;
+	}
+
+	wait_command("OK", 1000);
+	check_command("AT+QFCLOSE=" + String(filehandle), "OK");
+
+	return;
+}
+
+
 // --- --- ---
 
 // --- private TCP ---
