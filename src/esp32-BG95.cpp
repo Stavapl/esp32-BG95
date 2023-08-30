@@ -2740,7 +2740,7 @@ void MODEMBGXX::FILE_get_chunk(String filename, char *buf, size_t size, size_t o
 	AT+QFSEEK=filehandle,offset,0
 	OK
 	AT+QFREAD=filehandle,size
-	CONNECT read_length
+	CONNECT read_length\r
 	...
 	OK
 	AT+QFCLOSE=filehandle
@@ -2797,7 +2797,9 @@ void MODEMBGXX::FILE_get_chunk(String filename, char *buf, size_t size, size_t o
 
 	size_t bytes_really_read = modem->readBytes(buf, *read_bytes);
 	log("bytes_really_read = " + String(bytes_really_read));
-	// log(buf);
+	log("buf: ");
+	for(int i = 0; i < 10; i++)
+		log(String((int)buf[i]) + " ");
 	if(bytes_really_read != *read_bytes) {
 		*read_bytes = 0;
 	}

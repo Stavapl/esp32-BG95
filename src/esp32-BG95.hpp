@@ -33,7 +33,7 @@
 
 // CONSTANTS
 #define AT_WAIT_RESPONSE 10 // milis
-#define AT_TERMINATOR '\r'	// \n
+#define AT_TERMINATOR '\n'	// \n
 
 #define MAX_SMS 10
 
