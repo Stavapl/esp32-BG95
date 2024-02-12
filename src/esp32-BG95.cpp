@@ -2146,13 +2146,16 @@ void MODEMBGXX::MQTT_init(bool (*callback)(uint8_t, String, String))
  *
  * @clientID - supports 5 clients, yet is limited to MAX_MQTT_CONNECTIONS
  * @contextID - index of TCP tcp[] - choose 1 connection
- * @will_topic - topic to be sent if mqtt loses connection
- * @payload - payload to be sent with will topic
+ * @willTopic - topic to be sent if mqtt loses connection
+ * @willPayload - payload to be sent with will topic
  *
  * returns true if configuration was succeed
  */
-bool MODEMBGXX::MQTT_setup(uint8_t clientID, uint8_t contextID, String will_topic, String payload)
+bool MODEMBGXX::MQTT_setup(uint8_t clientID, uint8_t contextID, String willTopic, String willPayload)
 {
+#ifdef DEBUG_BG95
+	log("Setup: clientID:" + String(clientID) + " contextID:" + String(contextID) + " willTopic:" + willTopic + " willPayload:" + willPayload);
+#endif
 
 	if (clientID >= MAX_MQTT_CONNECTIONS)
 		return false;
@@ -2185,7 +2188,7 @@ bool MODEMBGXX::MQTT_setup(uint8_t clientID, uint8_t contextID, String will_topi
 	check_command(s.c_str(), "OK", 2000);
 	// return false;
 
-	s = "AT+QMTCFG=\"will\"," + String(clientID) + ",1,2,1,\"" + will_topic + "\",\"" + payload + "\"";
+	s = "AT+QMTCFG=\"will\"," + String(clientID) + ",1,2,1,\"" + willTopic + "\",\"" + willPayload + "\"";
 	check_command(s.c_str(), "OK", 2000);
 	// return false;
 
