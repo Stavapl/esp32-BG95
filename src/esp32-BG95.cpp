@@ -2219,7 +2219,7 @@ bool MODEMBGXX::MQTT_set_ssl(uint8_t clientID, uint8_t contextID, uint8_t sslCli
  *
  * return true if connection is open
  */
-bool MODEMBGXX::MQTT_connect(uint8_t clientID, const char *uid, const char *user, const char *pass, const char *host, uint16_t port)
+bool MODEMBGXX::MQTT_connect(uint8_t clientID, const char *uid, const char *user, const char *pass, const char *host, uint16_t port, uint8_t cleanSession)
 {
 	if (clientID >= MAX_CONNECTIONS)
 		return false;
@@ -2229,10 +2229,13 @@ bool MODEMBGXX::MQTT_connect(uint8_t clientID, const char *uid, const char *user
 	memcpy(mqtt[clientID].host, host_str.c_str(), host_str.length());
 
 #ifdef DEBUG_BG95
-	log("connecting to: " + String(host));
+	log("Connect: " + String(host) + " cleanSession:" + String(cleanSession));
 #endif
 	if (!MQTT_isOpened(clientID, host, port))
 	{
+		String s = "AT+QMTCFG=\"session\"," + String(clientID) + "," + String(cleanSession);
+		check_command(s.c_str(), "OK", 2000);
+
 		if (!MQTT_open(clientID, host, port))
 			return false;
 	}

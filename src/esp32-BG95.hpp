@@ -225,7 +225,7 @@ public:
 	void MQTT_init(bool (*callback)(uint8_t clientID, String topic, String payload));
 	bool MQTT_setup(uint8_t clientID, uint8_t contextID, String willTopic, String willPayload);
 	bool MQTT_set_ssl(uint8_t clientID, uint8_t contextID, uint8_t sslClientID);
-	bool MQTT_connect(uint8_t clientID, const char *uid, const char *user, const char *pass, const char *host, uint16_t port = 1883);
+	bool MQTT_connect(uint8_t clientID, const char *uid, const char *user, const char *pass, const char *host, uint16_t port = 1883, uint8_t cleanSession = 1);
 	bool MQTT_connected(uint8_t clientID);
 	int8_t MQTT_disconnect(uint8_t clientID);
 	bool MQTT_subscribeTopic(uint8_t clientID, uint16_t msg_id, String topic, uint8_t qos);
