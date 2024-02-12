@@ -2216,6 +2216,7 @@ bool MODEMBGXX::MQTT_set_ssl(uint8_t clientID, uint8_t contextID, uint8_t sslCli
  * @pass: credential
  * @host: DNS or IP
  * @port: default 1883
+ * @cleanSession: default 1 to start a clean session in broker
  *
  * return true if connection is open
  */

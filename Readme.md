@@ -78,8 +78,8 @@ Library to interact with BGxx enabling functionalities listed above
 ### MQTT
 
 - [void MQTT_init(bool(*callback)(String topic,String payload))](#MQTT-init)
-- [bool MQTT_setup(uint8_t clientID, uint8_t contextID, String will_topic, String payload)](#MQTT-setup)
-- [bool MQTT_connect(uint8_t clientID, const char* uid, const char* user, const char* pass, const char* host, uint16_t port = 1883)](#MQTT-connect)
+- [bool MQTT_setup(uint8_t clientID, uint8_t contextID, String willTopic, String willPayload)](#MQTT-setup)
+- [bool MQTT_connect(uint8_t clientID, const char* uid, const char* user, const char* pass, const char* host, uint16_t port = 1883, uint8_t cleanSession)](#MQTT-connect)
 - [bool MQTT_connected(uint8_t clientID)](#MQTT-connected)
 - [int8_t MQTT_disconnect(uint8_t clientID)](#MQTT-disconnect)
 - [bool MQTT_subscribeTopic(uint8_t clientID, uint16_t msg_id, String topic,uint8_t qos)](#MQTT-subscribeTopic)
@@ -370,8 +370,8 @@ void MODEMBGXX::MQTT_init(bool(*callback)(String,String))
 *
 * @clientID - supports 5 clients, yet is limited to MAX_MQTT_CONNECTIONS
 * @contextID - index of TCP tcp[] - choose 1 connection
-* @will_topic - topic to be sent if mqtt loses connection
-* @payload - payload to be sent with will topic
+* @willTopic - topic to be sent if mqtt loses connection
+* @willPayload - payload to be sent with will topic
 *
 * returns true if configuration was succeed
 ```
@@ -388,10 +388,11 @@ bool MODEMBGXX::MQTT_setup(uint8_t clientID, uint8_t contextID, String will_topi
 * @pass: credential
 * @host: DNS or IP
 * @port: default 1883
+* @cleanSession: default 1 to start a clean session in broker
 *
 * return true if connection is open
 ```
-bool MODEMBGXX::MQTT_connect(uint8_t clientID, const char* uid, const char* user, const char* pass, const char* host, uint16_t port)
+bool MODEMBGXX::MQTT_connect(uint8_t clientID, const char* uid, const char* user, const char* pass, const char* host, uint16_t port, uint8_t cleanSession)
 ```
 
 #### MQTT connected
