@@ -1041,10 +1041,10 @@ String MODEMBGXX::parse_command_line(String line, bool set_data_pending)
 			line = line.substring(index + 1, index + 2);
 		else
 			line = line.substring(_cgreg.length(), _cgreg.length() + 1);
+#ifdef DEBUG_BG95
 		if (isNumeric(line))
 		{
 			int radio_state = line.toInt();
-#ifdef DEBUG_BG95
 			switch (radio_state)
 			{
 			case NOT_REGISTERED:
@@ -1066,8 +1066,8 @@ String MODEMBGXX::parse_command_line(String line, bool set_data_pending)
 				log("EGPRS registered, roaming");
 				break;
 			}
-#endif
 		}
+#endif		
 		return "";
 	}
 	else if (line.startsWith(_cereg))
