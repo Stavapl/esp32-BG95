@@ -493,7 +493,9 @@ void MODEMBGXX::check_sms()
 			if (ret == "ERROR")
 				break;
 
-			log("[sms] '" + ret + "'");
+			#ifdef DEBUG_BG95
+				log("[sms] '" + ret + "'");
+			#endif
 
 			String index = "", msg_state = "", origin = "", msg = "";
 

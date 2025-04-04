@@ -160,6 +160,8 @@ public:
 	String check_connection_state(uint8_t connectionID);
 
 	// --- SMS ---
+	// check for new SMS messages
+	void check_sms();
 	/*
 	 * check if there is some function to deal with sms
 	 */
@@ -422,9 +424,6 @@ private:
 	void MQTT_checkConnection();
 	bool _MQTT_check_in_progress = false;
 	void MQTT_readMessages(uint8_t clientID);
-
-	// check for new SMS messages
-	void check_sms();
 
 	// process pending SMS messages
 	void process_sms(uint8_t index);
