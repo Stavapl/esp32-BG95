@@ -476,47 +476,48 @@ void MODEMBGXX::check_sms()
 
 	String sms[7]; // index, status, origin, phonebook, date, time, msg
 	// uint8_t  index     = 0;
-	uint32_t timeout = millis() + 10000;
+	uint32_t timeout = millis() + 400;
 	uint8_t counter = 0;
 
 	while (timeout >= millis())
 	{
 		if (modem->available())
 		{
-			String ret = modem->readStringUntil(AT_TERMINATOR);
+			String response = modem->readStringUntil(AT_TERMINATOR);
 
-			ret.trim();
-			if (ret.length() == 0)
+			response.trim();
+			if (response.length() == 0)
 				continue;
-			if (ret == "OK")
+			if (response == "OK")
 				break;
-			if (ret == "ERROR")
+			if (response == "ERROR")
 				break;
 
-			#ifdef DEBUG_BG95
-				log("[sms] '" + ret + "'");
+			#ifdef DEBUG_BG95_HIGH
+					log("[respoonse] '" + response + "'");
 			#endif
 
 			String index = "", msg_state = "", origin = "", msg = "";
 
-			if (!ret.startsWith("+CMGL:"))
+			if (!response.startsWith("+CMGL:"))
 			{
-				parse_command_line(ret, true);
+				TIMEIT(response = parse_command_line(response, true));
+				continue;
 			}
 
-			ret = ret.substring(6);
-			ret.trim();
+			response = response.substring(6);
+			response.trim();
 
 			uint8_t word = 0, last_i = 0;
-			for (uint8_t i = 0; i < ret.length(); i++)
+			for (uint8_t i = 0; i < response.length(); i++)
 			{
-				if (ret.charAt(i) == ',')
+				if (response.charAt(i) == ',')
 				{
 					switch (word)
 					{
 					case 0:
 						message[counter].used = true;
-						index = ret.substring(0, i);
+						index = response.substring(0, i);					
 #ifdef DEBUG_BG95
 						log("index: " + index);
 #endif
@@ -524,14 +525,16 @@ void MODEMBGXX::check_sms()
 						last_i = i;
 						break;
 					case 1:
-						msg_state = ret.substring(last_i, i);
+						msg_state = response.substring(last_i, i);
+						
 #ifdef DEBUG_BG95
 						log("msg_state: " + msg_state);
 #endif
+						
 						last_i = i;
 						break;
 					case 2:
-						origin = ret.substring(last_i, i);
+						origin = response.substring(last_i, i);
 						origin.replace("\"", "");
 						origin.replace(",", "");
 // origin.replace("+","");
