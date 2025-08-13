@@ -2156,7 +2156,7 @@ void MODEMBGXX::MQTT_init(bool (*callback)(uint8_t, String, String))
  *
  * returns true if configuration was succeed
  */
-bool MODEMBGXX::MQTT_setup(uint8_t clientID, uint8_t contextID, String willTopic, String willPayload)
+bool MODEMBGXX::MQTT_setup(uint8_t clientID, uint8_t contextID, String willTopic, String willPayload, uint16_t keepalive)
 {
 #ifdef DEBUG_BG95
 	log("Setup: clientID:" + String(clientID) + " contextID:" + String(contextID) + " willTopic:" + willTopic + " willPayload:" + willPayload);
@@ -2197,7 +2197,7 @@ bool MODEMBGXX::MQTT_setup(uint8_t clientID, uint8_t contextID, String willTopic
 	check_command(s.c_str(), "OK", 2000);
 	// return false;
 
-	s = "AT+QMTCFG=\"keepalive\"," + String(clientID) + ",300";
+	s = "AT+QMTCFG=\"keepalive\"," + String(clientID) + "," + String(keepalive);
 	check_command(s.c_str(), "OK", 2000);
 
 	return true;
