@@ -1834,7 +1834,7 @@ bool MODEMBGXX::get_clock(tm *t)
 	if (index == -1)
 		return false;
 
-	t->tm_year = (int)response.substring(index - 2, index).toInt();
+	t->tm_year = (int)response.substring(index - 2, index).toInt() + 100;
 	response = response.substring(index + 1);
 
 	// log("year: "+String(t->tm_year));
@@ -1844,7 +1844,7 @@ bool MODEMBGXX::get_clock(tm *t)
 	if (index == -1)
 		return false;
 
-	t->tm_mon = (int)response.substring(index - 2, index).toInt();
+	t->tm_mon = (int)response.substring(index - 2, index).toInt() - 1;
 	response = response.substring(index + 1);
 
 	// log("month: "+String(t->tm_mon));
@@ -1890,9 +1890,6 @@ bool MODEMBGXX::get_clock(tm *t)
 	response = response.substring(index + 1);
 
 	// log("sec: "+String(t->tm_sec));
-
-	if (t->tm_year < 19)
-		return false;
 
 	if (response.toInt() != 0)
 	{
