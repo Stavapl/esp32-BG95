@@ -50,15 +50,11 @@ bool MODEMBGXX::init(uint8_t radio, uint16_t cops, uint8_t pwkey)
 	op.radio = radio;
 	op.cops = cops;
 
-	TIMEIT(
 	if (!powerCycle())
 		return false;
-	);
 
-	TIMEIT(
 	if (!config())
 		return false;
-	);
 
 	if (!configure_radio_mode(radio, cops))
 		return false;
@@ -1019,7 +1015,7 @@ String MODEMBGXX::check_messages()
 		if (command.length() == 0)
 			continue;
 
-		TIMEIT(command = parse_command_line(command, true));
+		command = parse_command_line(command, true);
 	}
 	return command;
 }
